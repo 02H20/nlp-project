@@ -1,0 +1,12 @@
+jieba>=0.42.1
+numpy>=1.26
+openai>=1.0
+pandas>=2.0
+pyyaml>=6.0
+rank-bm25>=0.2.2
+requests>=2.31
+accelerate>=0.30
+torch>=2.1
+tqdm>=4.66
+transformers>=4.40
+pytest>=8.0

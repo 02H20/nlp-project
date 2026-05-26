@@ -1,0 +1,11 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+data/raw/
+data/processed/
+results/
+Qwen2.5-7B/
+models/
+agent_memory/

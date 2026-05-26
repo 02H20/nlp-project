@@ -1,0 +1,23 @@
+data:
+  dureader_path: data/raw
+  prepared_path: data/processed/prepared.json
+  sample_size: 50
+  corpus_size: 1000
+  seed: 42
+
+retrieval:
+  top_k: 5
+
+generator:
+  model_path: ${GENERATOR_MODEL_PATH}
+  max_new_tokens: 128
+  temperature: 0.0
+  device: auto
+
+judge:
+  base_url: https://api.deepseek.com
+  model: deepseek-v4-flash
+  api_key: ${DEEPSEEK_API_KEY}
+
+output:
+  dir: results

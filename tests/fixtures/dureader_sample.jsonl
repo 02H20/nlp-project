@@ -1,0 +1,3 @@
+{"question_id":"q1","question":"杭州亚运会在哪里举办？","answers":["杭州"],"documents":[{"id":"p1","title":"杭州亚运会","paragraphs":["第19届亚洲运动会在中国浙江省杭州市举办。"],"is_selected":true},{"id":"p2","title":"广州亚运会","paragraphs":["第16届亚洲运动会在中国广州举办。"],"is_selected":false}]}
+{"question_id":"q2","question":"《红楼梦》的作者是谁？","answers":["曹雪芹"],"documents":[{"id":"p3","title":"红楼梦","paragraphs":["《红楼梦》是中国古典章回小说，通常认为作者是曹雪芹。"],"is_selected":true},{"id":"p4","title":"西游记","paragraphs":["《西游记》的作者一般认为是吴承恩。"],"is_selected":false}]}
+{"question_id":"q3","question":"长江最终流入哪个海？","answers":["东海"],"documents":[{"id":"p5","title":"长江","paragraphs":["长江发源于青藏高原，最终注入东海。"],"is_selected":true},{"id":"p6","title":"黄河","paragraphs":["黄河最终注入渤海。"],"is_selected":false}]}

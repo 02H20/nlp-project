@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-zh-position"
+version = "0.1.0"
+description = "Small-scale Chinese RAG passage ordering experiment based on DuReader 2.0."
+requires-python = ">=3.11"
+dependencies = [
+  "accelerate>=0.30",
+  "jieba>=0.42.1",
+  "numpy>=1.26",
+  "openai>=1.0",
+  "pandas>=2.0",
+  "pyyaml>=6.0",
+  "rank-bm25>=0.2.2",
+  "requests>=2.31",
+  "torch>=2.1",
+  "tqdm>=4.66",
+  "transformers>=4.40",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[project.scripts]
+rag-zh = "rag_zh.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

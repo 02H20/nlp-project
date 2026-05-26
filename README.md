@@ -37,15 +37,15 @@ DuReader 2.0 官方仓库位于 Baidu GitHub：<https://github.com/baidu/DuReade
 在项目目录下执行：
 
 ```bash
-git clone https://github.com/baidu/DuReader.git data/raw/DuReader
-cd data/raw/DuReader/DuReader-2.0/data
+git clone https://github.com/baidu/DuReader.git
+cd DuReader/DuReader-2.0/data
 bash download.sh
 ```
 
 官方脚本会下载并解压 DuReader 2.0 的 raw 和 preprocessed 数据。下载完成后，通常可以使用：
 
 ```bash
-data/raw/DuReader/DuReader-2.0/data/preprocessed
+DuReader/DuReader-2.0/data/preprocessed
 ```
 
 作为本项目的 `--dureader-path`。
@@ -118,7 +118,7 @@ judge:
 conda activate nlp
 
 rag-zh prepare-data \
-  --dureader-path data/raw/DuReader/DuReader-2.0/data/preprocessed \
+  --dureader-path DuReader/DuReader-2.0/data/preprocessed \
   --sample-size 50 \
   --corpus-size 1000
 ```

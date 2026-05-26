@@ -1,0 +1,99 @@
+{
+  "examples": [
+    {
+      "id": "q2",
+      "question": "《红楼梦》的作者是谁？",
+      "answers": [
+        "曹雪芹"
+      ],
+      "positive_passage_ids": [
+        "p3"
+      ],
+      "metadata": {
+        "source": "dureader"
+      }
+    },
+    {
+      "id": "q1",
+      "question": "杭州亚运会在哪里举办？",
+      "answers": [
+        "杭州"
+      ],
+      "positive_passage_ids": [
+        "p1"
+      ],
+      "metadata": {
+        "source": "dureader"
+      }
+    },
+    {
+      "id": "q3",
+      "question": "长江最终流入哪个海？",
+      "answers": [
+        "东海"
+      ],
+      "positive_passage_ids": [
+        "p5"
+      ],
+      "metadata": {
+        "source": "dureader"
+      }
+    }
+  ],
+  "passages": [
+    {
+      "id": "p1",
+      "text": "第19届亚洲运动会在中国浙江省杭州市举办。",
+      "title": "杭州亚运会",
+      "source": "dureader",
+      "metadata": {
+        "question_id": "q1"
+      }
+    },
+    {
+      "id": "p3",
+      "text": "《红楼梦》是中国古典章回小说，通常认为作者是曹雪芹。",
+      "title": "红楼梦",
+      "source": "dureader",
+      "metadata": {
+        "question_id": "q2"
+      }
+    },
+    {
+      "id": "p5",
+      "text": "长江发源于青藏高原，最终注入东海。",
+      "title": "长江",
+      "source": "dureader",
+      "metadata": {
+        "question_id": "q3"
+      }
+    },
+    {
+      "id": "p6",
+      "text": "黄河最终注入渤海。",
+      "title": "黄河",
+      "source": "dureader",
+      "metadata": {
+        "question_id": "q3"
+      }
+    },
+    {
+      "id": "p4",
+      "text": "《西游记》的作者一般认为是吴承恩。",
+      "title": "西游记",
+      "source": "dureader",
+      "metadata": {
+        "question_id": "q2"
+      }
+    },
+    {
+      "id": "p2",
+      "text": "第16届亚洲运动会在中国广州举办。",
+      "title": "广州亚运会",
+      "source": "dureader",
+      "metadata": {
+        "question_id": "q1"
+      }
+    }
+  ]
+}

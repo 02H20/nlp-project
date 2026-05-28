@@ -9,3 +9,4 @@ Qwen2.5-7B/
 models/
 agent_memory/
 DuReader/
+configs/

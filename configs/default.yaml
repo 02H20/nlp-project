@@ -4,6 +4,7 @@ data:
   sample_size: 50
   corpus_size: 1000
   seed: 42
+  min_answer_overlap: 0.0
 
 retrieval:
   top_k: 5
@@ -13,6 +14,8 @@ generator:
   max_new_tokens: 128
   temperature: 0.0
   device: auto
+  repetition_penalty: 1.08
+  no_repeat_ngram_size: 6
 
 judge:
   base_url: https://www.dmxapi.cn/v1

@@ -54,6 +54,7 @@ def run_experiment(config: dict[str, Any]) -> dict[str, float]:
                                     "score": item.score,
                                     "passage_id": item.passage.id,
                                     "title": item.passage.title,
+                                    "text": item.passage.text[:800],
                                 }
                                 for item in ordered
                             ],

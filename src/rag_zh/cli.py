@@ -26,6 +26,11 @@ def prepare_data(args: argparse.Namespace) -> None:
         sample_size=int(args.sample_size or config["data"]["sample_size"]),
         corpus_size=int(args.corpus_size or config["data"]["corpus_size"]),
         seed=int(config["data"].get("seed", 42)),
+        min_answer_overlap=float(
+            args.min_answer_overlap
+            if args.min_answer_overlap is not None
+            else config["data"].get("min_answer_overlap", 0.0)
+        ),
     )
     save_prepared(config["data"]["prepared_path"], sampled_examples, sampled_passages)
     print(
@@ -57,6 +62,11 @@ def main() -> None:
     prepare.add_argument("--output")
     prepare.add_argument("--sample-size", type=int)
     prepare.add_argument("--corpus-size", type=int)
+    prepare.add_argument(
+        "--min-answer-overlap",
+        type=float,
+        help="Keep examples whose answer-token overlap with positive passages is at least this value.",
+    )
     prepare.set_defaults(func=prepare_data)
 
     retrieve_parser = subparsers.add_parser("retrieve")

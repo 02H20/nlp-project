@@ -5,6 +5,7 @@ import random
 from pathlib import Path
 from typing import Any, Iterable
 
+from .retrieval import tokenize
 from .types import Passage, QAExample
 
 
@@ -72,6 +73,20 @@ def _document_title(document: dict[str, Any]) -> str:
     return _as_text(document.get("title") or document.get("doc_title") or document.get("source"))
 
 
+def answer_overlap_score(question: str, answers: list[str], passage_texts: list[str]) -> float:
+    answer_tokens = {
+        token
+        for answer in answers
+        for token in tokenize(answer)
+        if len(token.strip()) > 1 and token.strip() not in question
+    }
+    if not answer_tokens:
+        return 0.0
+    evidence = "\n".join(passage_texts)
+    matched = sum(1 for token in answer_tokens if token in evidence)
+    return matched / len(answer_tokens)
+
+
 def load_dureader(path: str | Path) -> tuple[list[QAExample], list[Passage]]:
     examples: list[QAExample] = []
     passages: dict[str, Passage] = {}
@@ -128,9 +143,21 @@ def sample_dataset(
     sample_size: int,
     corpus_size: int,
     seed: int,
+    min_answer_overlap: float = 0.0,
 ) -> tuple[list[QAExample], list[Passage]]:
     rng = random.Random(seed)
-    selected_examples = examples[:]
+    passage_by_id = {passage.id: passage for passage in passages}
+    eligible_examples: list[QAExample] = []
+    for example in examples:
+        positive_texts = [
+            passage_by_id[pid].text for pid in example.positive_passage_ids if pid in passage_by_id
+        ]
+        if min_answer_overlap <= 0 or answer_overlap_score(
+            example.question, example.answers, positive_texts
+        ) >= min_answer_overlap:
+            eligible_examples.append(example)
+
+    selected_examples = eligible_examples[:]
     rng.shuffle(selected_examples)
     selected_examples = selected_examples[: min(sample_size, len(selected_examples))]
 

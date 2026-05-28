@@ -30,8 +30,11 @@ def build_rag_prompt(question: str, passages: list[RetrievedPassage]) -> str:
         docs.append(f"文档[{index}]\n{item.passage.prompt_text()}")
     documents = "\n\n".join(docs)
     return (
-        "你将看到一个问题和若干中文文档。请只根据文档内容直接回答问题，"
-        "不要输出推理过程；如果文档无法回答，请回答“无法确定”。\n\n"
+        "你将看到一个问题和若干中文文档。请只根据文档内容直接回答问题。"
+        "如果文档中有部分证据可用于回答，请优先给出基于文档的最佳答案；"
+        "只有在所有文档都完全没有相关信息时，才回答“无法确定”。"
+        "不要输出推理过程，不要复述问题，不要生成新的问答样例，不要重复输出，"
+        "不要编造文档外信息。\n\n"
         f"{documents}\n\n问题：{question}\n答案："
     )
 
@@ -43,6 +46,8 @@ class HFGenerator:
         max_new_tokens: int = 128,
         temperature: float = 0.0,
         device: str = "auto",
+        repetition_penalty: float = 1.08,
+        no_repeat_ngram_size: int = 6,
     ):
         _validate_model_path(model_path)
         try:
@@ -60,18 +65,24 @@ class HFGenerator:
         self.model = AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
         self.max_new_tokens = max_new_tokens
         self.temperature = temperature
+        self.repetition_penalty = repetition_penalty
+        self.no_repeat_ngram_size = no_repeat_ngram_size
 
     def generate(self, question: str, passages: list[RetrievedPassage]) -> GenerationResult:
         prompt = build_rag_prompt(question, passages)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
         do_sample = self.temperature > 0
-        outputs = self.model.generate(
+        generate_kwargs = {
             **inputs,
-            max_new_tokens=self.max_new_tokens,
-            do_sample=do_sample,
-            temperature=self.temperature if do_sample else None,
-            pad_token_id=self.tokenizer.eos_token_id,
-        )
+            "max_new_tokens": self.max_new_tokens,
+            "do_sample": do_sample,
+            "pad_token_id": self.tokenizer.eos_token_id,
+            "repetition_penalty": self.repetition_penalty,
+            "no_repeat_ngram_size": self.no_repeat_ngram_size,
+        }
+        if do_sample:
+            generate_kwargs["temperature"] = self.temperature
+        outputs = self.model.generate(**generate_kwargs)
         generated_ids = outputs[0][inputs["input_ids"].shape[-1] :]
         answer = self.tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
         return GenerationResult(answer=answer, prompt=prompt)

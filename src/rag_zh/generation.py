@@ -1,6 +1,27 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from .types import GenerationResult, RetrievedPassage
+
+
+def _looks_like_local_path(model_path: str) -> bool:
+    return (
+        Path(model_path).is_absolute()
+        or model_path.startswith(("./", "../", "~/"))
+        or model_path.startswith("models/")
+    )
+
+
+def _validate_model_path(model_path: str) -> None:
+    if not model_path:
+        raise ValueError("generator.model_path is required. Set GENERATOR_MODEL_PATH or config value.")
+    if _looks_like_local_path(model_path) and not Path(model_path).expanduser().exists():
+        raise FileNotFoundError(
+            "generator.model_path points to a local path that does not exist: "
+            f"{model_path!r}. Download the model there or set GENERATOR_MODEL_PATH to an existing "
+            "local checkpoint directory."
+        )
 
 
 def build_rag_prompt(question: str, passages: list[RetrievedPassage]) -> str:
@@ -23,8 +44,7 @@ class HFGenerator:
         temperature: float = 0.0,
         device: str = "auto",
     ):
-        if not model_path:
-            raise ValueError("generator.model_path is required. Set GENERATOR_MODEL_PATH or config value.")
+        _validate_model_path(model_path)
         try:
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer

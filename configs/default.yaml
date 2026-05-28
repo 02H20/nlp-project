@@ -15,9 +15,9 @@ generator:
   device: auto
 
 judge:
-  base_url: https://api.deepseek.com
+  base_url: https://www.dmxapi.cn/v1
   model: deepseek-v4-flash
-  api_key: ${DEEPSEEK_API_KEY}
+  api_key: ${sk-afs7ei4Tgk9HJTuGTrGngD97H3K54e6V9it98O7NOmISqjrK}
 
 output:
   dir: results

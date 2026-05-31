@@ -1,0 +1,6 @@
+strategy,accuracy,correct,total
+sequential,0.6750,135,200
+inverse,0.7150,143,200
+shuffle,0.6800,136,200
+max_relevance,0.7400,148,200
+min_distraction,0.6700,134,200

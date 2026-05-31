@@ -4,7 +4,6 @@ __pycache__/
 .pytest_cache/
 
 
-results/
 Qwen2.5-7B/
 models/
 agent_memory/

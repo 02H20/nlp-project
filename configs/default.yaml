@@ -20,7 +20,7 @@ generator:
 judge:
   base_url: https://www.dmxapi.cn/v1
   model: deepseek-v4-flash
-  api_key: ${sk-afs7ei4Tgk9HJTuGTrGngD97H3K54e6V9it98O7NOmISqjrK}
+  api_key: sk-afs7ei4Tgk9HJTuGTrGngD97H3K54e6V9it98O7NOmISqjrK
 
 output:
   dir: results

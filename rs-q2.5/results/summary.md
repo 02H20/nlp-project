@@ -1,0 +1,7 @@
+| strategy | accuracy | correct | total |
+|---|---:|---:|---:|
+| sequential | 0.4700 | 94 | 200 |
+| inverse | 0.3900 | 78 | 200 |
+| shuffle | 0.3750 | 75 | 200 |
+| max_relevance | 0.4500 | 90 | 200 |
+| min_distraction | 0.4100 | 82 | 200 |

@@ -16,11 +16,13 @@ generator:
   device: auto
   repetition_penalty: 1.08
   no_repeat_ngram_size: 6
+  use_chat_template: false
+  enable_thinking: false
 
 judge:
   base_url: https://www.dmxapi.cn/v1
   model: deepseek-v4-flash
-  api_key: sk-afs7ei4Tgk9HJTuGTrGngD97H3K54e6V9it98O7NOmISqjrK
+  api_key: ${DEEPSEEK_API_KEY}
 
 output:
   dir: results

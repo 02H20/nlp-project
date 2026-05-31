@@ -48,6 +48,8 @@ class HFGenerator:
         device: str = "auto",
         repetition_penalty: float = 1.08,
         no_repeat_ngram_size: int = 6,
+        use_chat_template: bool = False,
+        enable_thinking: bool = False,
     ):
         _validate_model_path(model_path)
         try:
@@ -67,10 +69,32 @@ class HFGenerator:
         self.temperature = temperature
         self.repetition_penalty = repetition_penalty
         self.no_repeat_ngram_size = no_repeat_ngram_size
+        self.use_chat_template = use_chat_template
+        self.enable_thinking = enable_thinking
 
     def generate(self, question: str, passages: list[RetrievedPassage]) -> GenerationResult:
         prompt = build_rag_prompt(question, passages)
-        inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        if self.use_chat_template:
+            messages = [{"role": "user", "content": prompt}]
+            try:
+                inputs = self.tokenizer.apply_chat_template(
+                    messages,
+                    add_generation_prompt=True,
+                    tokenize=True,
+                    return_dict=True,
+                    return_tensors="pt",
+                    enable_thinking=self.enable_thinking,
+                ).to(self.model.device)
+            except TypeError:
+                inputs = self.tokenizer.apply_chat_template(
+                    messages,
+                    add_generation_prompt=True,
+                    tokenize=True,
+                    return_dict=True,
+                    return_tensors="pt",
+                ).to(self.model.device)
+        else:
+            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
         do_sample = self.temperature > 0
         generate_kwargs = {
             **inputs,

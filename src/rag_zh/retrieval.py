@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from math import log
-from typing import Iterable
+from typing import Any, Iterable, Protocol
 
 try:
     import jieba
@@ -27,6 +27,11 @@ def tokenize(text: str) -> list[str]:
     return TOKEN_PATTERN.findall(text)
 
 
+class Retriever(Protocol):
+    def search(self, query: str, top_k: int) -> list[RetrievedPassage]:
+        ...
+
+
 class BM25Retriever:
     def __init__(self, passages: Iterable[Passage]):
         self.passages = list(passages)
@@ -46,7 +51,12 @@ class BM25Retriever:
             scores = [self._fallback_score(query_tokens, doc) for doc in self.tokenized_corpus]
         ranked = sorted(enumerate(scores), key=lambda item: float(item[1]), reverse=True)[:top_k]
         return [
-            RetrievedPassage(passage=self.passages[index], score=float(score), rank=rank)
+            RetrievedPassage(
+                passage=self.passages[index],
+                score=float(score),
+                rank=rank,
+                metadata={"bm25_rank": rank, "bm25_score": float(score)},
+            )
             for rank, (index, score) in enumerate(ranked, start=1)
         ]
 
@@ -63,3 +73,77 @@ class BM25Retriever:
             tf = counts[token]
             score += idf * (tf * 2.5) / (tf + 1.5 * (0.25 + 0.75 * doc_len / self._avgdl))
         return score
+
+
+class BGEReranker:
+    def __init__(self, model_name: str, use_fp16: bool = True):
+        try:
+            from FlagEmbedding import FlagReranker
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError(
+                "Install FlagEmbedding before using retrieval.pipeline=bm25_rerank."
+            ) from exc
+        self.model = FlagReranker(model_name, use_fp16=use_fp16)
+
+    def score(self, query: str, passages: list[Passage]) -> list[float]:
+        pairs = [[query, passage.prompt_text()] for passage in passages]
+        scores = self.model.compute_score(pairs, normalize=True)
+        if isinstance(scores, float):
+            return [scores]
+        return [float(score) for score in scores]
+
+
+class BM25RerankRetriever:
+    def __init__(self, bm25: BM25Retriever, reranker: BGEReranker, candidate_k: int):
+        self.bm25 = bm25
+        self.reranker = reranker
+        self.candidate_k = candidate_k
+
+    def search(self, query: str, top_k: int) -> list[RetrievedPassage]:
+        if self.candidate_k < top_k:
+            raise ValueError(
+                f"retrieval.candidate_k ({self.candidate_k}) must be >= retrieval.top_k ({top_k})."
+            )
+        candidates = self.bm25.search(query, top_k=self.candidate_k)
+        reranker_scores = self.reranker.score(query, [item.passage for item in candidates])
+        rescored = []
+        for item, reranker_score in zip(candidates, reranker_scores):
+            metadata = {
+                **item.metadata,
+                "reranker_score": float(reranker_score),
+            }
+            rescored.append(
+                RetrievedPassage(
+                    passage=item.passage,
+                    score=float(reranker_score),
+                    rank=item.rank,
+                    metadata=metadata,
+                )
+            )
+        ranked = sorted(rescored, key=lambda item: item.score, reverse=True)[:top_k]
+        return [
+            RetrievedPassage(
+                passage=item.passage,
+                score=item.score,
+                rank=rank,
+                metadata=item.metadata,
+            )
+            for rank, item in enumerate(ranked, start=1)
+        ]
+
+
+def build_retriever(passages: Iterable[Passage], config: dict[str, Any]) -> Retriever:
+    retrieval_config = config.get("retrieval", {})
+    pipeline = retrieval_config.get("pipeline", "bm25")
+    bm25 = BM25Retriever(passages)
+    if pipeline == "bm25":
+        return bm25
+    if pipeline == "bm25_rerank":
+        candidate_k = int(retrieval_config.get("candidate_k", 25))
+        reranker_config = config.get("reranker", {})
+        reranker = BGEReranker(
+            model_name=reranker_config.get("model_name", "BAAI/bge-reranker-v2-m3"),
+            use_fp16=bool(reranker_config.get("use_fp16", True)),
+        )
+        return BM25RerankRetriever(bm25=bm25, reranker=reranker, candidate_k=candidate_k)
+    raise ValueError(f"Unknown retrieval.pipeline: {pipeline}")

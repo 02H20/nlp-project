@@ -5,12 +5,12 @@
 当前版本使用：
 
 - 数据集：DuReader 2.0
-- 检索器：`jieba + BM25`
+- 检索器：`jieba + BM25`，可选 `BM25 + BGE reranker`
 - 生成模型：本地 Hugging Face 格式的 `Qwen2.5-7B`
 - 裁判模型：DeepSeek API
 - 实验重点：论文第 5 节真实 RAG 场景下的 passage ordering strategies
 
-> 注意：本项目是中文小规模复现实验，不是原论文的大规模严格复现。原论文使用英文 QA benchmark、完整 KILT Wikipedia、大规模检索库、BM25/BGE/reranker 等多条检索管线。本项目第一版只实现中文小规模 BM25 管线。
+> 注意：本项目是中文小规模复现实验，不是原论文的大规模严格复现。原论文使用英文 QA benchmark、完整 KILT Wikipedia、大规模检索库、BM25/BGE/reranker 等多条检索管线。本项目当前实现 BM25 与 BM25+reranker 两种检索管线。
 
 ## 1. 环境准备
 
@@ -120,7 +120,11 @@ judge:
 | `data.corpus_size` | `1000` | 构建检索库的 passage 数量。可被 `prepare-data --corpus-size` 覆盖。 |
 | `data.seed` | `42` | 数据抽样和 `shuffle` 排序策略使用的随机种子。 |
 | `data.min_answer_overlap` | `0.0` | 可选噪声过滤阈值。默认不清洗；大于 0 时过滤参考答案 token 与正例 passage 重合度过低的样本。 |
+| `retrieval.pipeline` | `bm25` | 检索管线。可选 `bm25` 或 `bm25_rerank`。 |
 | `retrieval.top_k` | `5` | 每个问题检索的 passage 数量。可被 `retrieve --top-k` 覆盖。 |
+| `retrieval.candidate_k` | `25` | `bm25_rerank` 中 BM25 先召回的候选数，必须大于等于 `top_k`。 |
+| `reranker.model_name` | `BAAI/bge-reranker-v2-m3` | reranker 模型名或本地模型目录。 |
+| `reranker.use_fp16` | `true` | reranker 是否使用 fp16 推理。 |
 | `generator.model_path` | `${GENERATOR_MODEL_PATH}` | 本地 Hugging Face 模型目录。通常通过环境变量 `GENERATOR_MODEL_PATH` 设置。 |
 | `generator.max_new_tokens` | `128` | 生成答案的最大 token 数。过短可能截断答案，过长可能增加重复生成。 |
 | `generator.temperature` | `0.0` | 生成采样温度。`0.0` 表示确定性生成。 |
@@ -224,13 +228,124 @@ results/
 - `results/summary.csv`：各排序策略准确率汇总。
 - `results/summary.md`：Markdown 表格版汇总。
 
-`details.jsonl` 的 `retrieved` 字段会记录每条检索 passage 的 `rank`、`score`、`passage_id`、`title` 和正文前 800 字 `text`，用于定位检索证据是否足够。
+`details.jsonl` 的 `retrieved` 字段会记录每条检索 passage 的 `rank`、`score`、`bm25_rank`、`bm25_score`、`reranker_score`、`passage_id`、`title` 和正文前 800 字 `text`，用于定位检索证据是否足够。
 
-## 9. 调试流程
+如果要运行 BM25+reranker，在配置中设置：
+
+```yaml
+retrieval:
+  pipeline: bm25_rerank
+  top_k: 5
+  candidate_k: 25
+
+reranker:
+  model_name: BAAI/bge-reranker-v2-m3
+  use_fp16: true
+
+output:
+  dir: rs-q2.5-rerank/results
+```
+
+`bm25_rerank` 会先用 BM25 从检索库中召回 `candidate_k` 条候选，再用 reranker 对 `(question, passage)` 打分重排，最后取 `top_k` 条进入后续五种 ordering strategy。
+
+## 9. 开关 reranker
+
+Reranker 只影响检索阶段，不需要重新生成 `data/processed/prepared.json`。只要问题样本和 passage 语料不变，同一份 prepared 数据可以同时用于 BM25 和 BM25+reranker 实验。
+
+推荐为 reranker 单独复制一份配置，避免覆盖默认 BM25 配置：
+
+```bash
+cp configs/default.yaml configs/qwen25_rerank.yaml
+```
+
+### 9.1 开启 reranker
+
+在 `configs/qwen25_rerank.yaml` 中设置：
+
+```yaml
+retrieval:
+  pipeline: bm25_rerank
+  top_k: 5
+  candidate_k: 25
+
+reranker:
+  model_name: BAAI/bge-reranker-v2-m3
+  use_fp16: true
+
+output:
+  dir: rs-q2.5-rerank/results
+```
+
+然后运行：
+
+```bash
+rag-zh run-experiment --config configs/qwen25_rerank.yaml
+```
+
+第一次使用 `BAAI/bge-reranker-v2-m3` 时会从 Hugging Face 下载模型。之后会使用本地缓存，也可以把 `reranker.model_name` 改成本地模型目录。
+
+### 9.2 关闭 reranker
+
+把配置改回：
+
+```yaml
+retrieval:
+  pipeline: bm25
+  top_k: 5
+  candidate_k: 25
+```
+
+`pipeline: bm25` 时，`candidate_k` 和 `reranker.*` 不会参与检索，可以保留不动。关闭 reranker 后直接运行默认配置即可：
+
+```bash
+rag-zh run-experiment --config configs/default.yaml
+```
+
+### 9.3 确认 reranker 是否生效
+
+查看新的 `results/details.jsonl`：
+
+```bash
+head -n 1 rs-q2.5-rerank/results/details.jsonl
+```
+
+如果开启成功，应看到：
+
+```json
+"retrieval_pipeline": "bm25_rerank"
+```
+
+并且 retrieved passage 中有非空的：
+
+```json
+"reranker_score": 0.95
+```
+
+如果关闭成功，应看到：
+
+```json
+"retrieval_pipeline": "bm25"
+```
+
+并且：
+
+```json
+"reranker_score": null
+```
+
+也可以用检索预览命令检查：
+
+```bash
+rag-zh retrieve --config configs/qwen25_rerank.yaml --limit 3
+```
+
+开启 reranker 时，输出会额外显示 `bm25_rank`、`bm25_score` 和 `reranker_score`。
+
+## 10. 调试流程
 
 建议先按小样本调通流程，再扩大到默认规模。
 
-### 9.1 数据调试
+### 10.1 数据调试
 
 先生成 3 个问题和 50 条 passage：
 
@@ -248,7 +363,7 @@ rag-zh prepare-data \
 
 如果数量明显不对，优先检查 `--dureader-path` 是否指向 DuReader 2.0 的 `preprocessed` 或可解析的 JSON/JSONL 数据。
 
-### 9.2 检索调试
+### 10.2 检索调试
 
 查看少量问题的 BM25 检索结果：
 
@@ -258,7 +373,7 @@ rag-zh retrieve --limit 3
 
 重点看 top-k 的 `title` 是否和问题相关。如果标题明显无关，通常说明数据路径、抽样语料或中文分词检索效果需要检查。
 
-### 9.3 生成与裁判调试
+### 10.3 生成与裁判调试
 
 确认模型和裁判环境变量已设置后，先在小样本上运行：
 
@@ -275,7 +390,7 @@ rag-zh run-experiment
 
 如果 `prediction` 频繁重复、过长或包含多个“问题/答案”片段，可以优先降低 `generator.max_new_tokens`，例如改为 `64`。
 
-### 9.4 结果分析
+### 10.4 结果分析
 
 先看总体表格：
 
@@ -291,7 +406,7 @@ grep '\"correct\": false' results/details.jsonl | head
 
 如果五种排序策略差异很小，这是符合原论文第 5 节的核心观察之一：真实 RAG 场景中，相关 passage 和干扰 passage 往往同时出现在靠前位置，单纯调整 passage 顺序未必显著提升准确率。
 
-## 10. 排序策略
+## 11. 排序策略
 
 本项目实现 5 种 passage 排序策略：
 
@@ -301,7 +416,7 @@ grep '\"correct\": false' results/details.jsonl | head
 - `max_relevance`：参考论文中 Qwen2.5-7B 的 k=5 位置偏好 `[5, 1, 4, 3, 2]`，把高排名 passage 放到模型更偏好的位置。
 - `min_distraction`：参考论文中 Qwen2.5-7B 的 k=5 干扰规避顺序 `[3, 2, 4, 1, 5]`，尽量避免把潜在干扰 passage 放到高影响位置。
 
-## 11. 运行测试
+## 12. 运行测试
 
 测试不依赖真实 DuReader、Qwen 模型或 DeepSeek API：
 
@@ -318,7 +433,7 @@ pytest
 - 五种排序策略
 - DeepSeek 裁判响应解析
 
-## 12. 常见问题
+## 13. 常见问题
 
 ### `Prepared dataset not found`
 
@@ -369,13 +484,13 @@ rag-zh prepare-data \
 
 ### 为什么小规模结果不能直接等同于原论文结论
 
-本项目默认只用 50 个问题和 1000 条 passage，且第一版只实现 BM25。原论文使用更大的英文 benchmark、完整 Wikipedia 级检索库、多种检索器和 reranker。因此本项目适合做中文小规模验证和课程实验，不能直接声称严格复现原论文全部结论。
+本项目默认只用 50 个问题和 1000 条 passage。原论文使用更大的英文 benchmark、完整 Wikipedia 级检索库、多种检索器和 reranker。因此本项目适合做中文小规模验证和课程实验，不能直接声称严格复现原论文全部结论。
 
 ### 为什么 Qwen2.5-7B 不使用 instruct chat template
 
 当前使用的是 `Qwen2.5-7B` base 模型，代码采用普通 prompt completion。Chat template 主要适用于 instruct/chat 模型。如果换成 `Qwen2.5-7B-Instruct`，再考虑引入 chat template 更合理。
 
-## 13. 项目结构
+## 14. 项目结构
 
 ```text
 .

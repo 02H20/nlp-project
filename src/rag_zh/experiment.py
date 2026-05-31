@@ -9,15 +9,18 @@ from .data import load_prepared
 from .generation import HFGenerator
 from .judge import DeepSeekJudge
 from .reorder import available_strategies, reorder_passages
-from .retrieval import BM25Retriever
+from .retrieval import build_retriever
 
 
 def run_experiment(config: dict[str, Any]) -> dict[str, float]:
     examples, passages = load_prepared(config["data"]["prepared_path"])
-    retriever = BM25Retriever(passages)
+    retriever = build_retriever(passages, config)
     generator = HFGenerator(**config["generator"])
     judge = DeepSeekJudge(**config["judge"])
 
+    retrieval_config = config.get("retrieval", {})
+    retrieval_pipeline = retrieval_config.get("pipeline", "bm25")
+    candidate_k = retrieval_config.get("candidate_k")
     top_k = int(config["retrieval"]["top_k"])
     seed = int(config["data"].get("seed", 42))
     output_dir = Path(config["output"]["dir"])
@@ -44,6 +47,8 @@ def run_experiment(config: dict[str, Any]) -> dict[str, float]:
                             "question_id": example.id,
                             "question": example.question,
                             "answers": example.answers,
+                            "retrieval_pipeline": retrieval_pipeline,
+                            "candidate_k": candidate_k,
                             "strategy": strategy,
                             "prediction": generation.answer,
                             "correct": result.correct,
@@ -52,6 +57,9 @@ def run_experiment(config: dict[str, Any]) -> dict[str, float]:
                                 {
                                     "rank": item.rank,
                                     "score": item.score,
+                                    "bm25_rank": item.metadata.get("bm25_rank"),
+                                    "bm25_score": item.metadata.get("bm25_score"),
+                                    "reranker_score": item.metadata.get("reranker_score"),
                                     "passage_id": item.passage.id,
                                     "title": item.passage.title,
                                     "text": item.passage.text[:800],

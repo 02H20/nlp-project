@@ -31,6 +31,7 @@ class RetrievedPassage:
     passage: Passage
     score: float
     rank: int
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

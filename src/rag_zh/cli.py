@@ -6,7 +6,7 @@ from pathlib import Path
 from .config import deep_update, load_config
 from .data import load_dureader, sample_dataset, save_prepared
 from .experiment import run_experiment
-from .retrieval import BM25Retriever
+from .retrieval import build_retriever
 
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:
@@ -44,12 +44,19 @@ def retrieve(args: argparse.Namespace) -> None:
 
     config = load_config(args.config)
     examples, passages = load_prepared(config["data"]["prepared_path"])
-    retriever = BM25Retriever(passages)
+    retriever = build_retriever(passages, config)
     top_k = int(args.top_k or config["retrieval"]["top_k"])
     for example in examples[: int(args.limit)]:
         print(f"\nQ: {example.question}")
         for item in retriever.search(example.question, top_k):
-            print(f"{item.rank}. {item.passage.id} score={item.score:.4f} title={item.passage.title}")
+            extra = ""
+            if item.metadata.get("reranker_score") is not None:
+                extra = (
+                    f" bm25_rank={item.metadata.get('bm25_rank')}"
+                    f" bm25_score={item.metadata.get('bm25_score'):.4f}"
+                    f" reranker_score={item.metadata.get('reranker_score'):.4f}"
+                )
+            print(f"{item.rank}. {item.passage.id} score={item.score:.4f}{extra} title={item.passage.title}")
 
 
 def main() -> None:
